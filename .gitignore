@@ -1,0 +1,5 @@
+__pycache__
+authentication_rebuild.py
+*.pyc
+*.pyo
+.env

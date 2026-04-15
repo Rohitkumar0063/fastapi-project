@@ -1,0 +1,8 @@
+__pycache__
+authentication_rebuild.py
+*.pyc
+*.pyo
+.git
+.gitignore
+*.md
+.env
