@@ -31,7 +31,7 @@ async def  get_current_user(token:str=Depends(oauth2scheme)):
   except JWTError:
     raise HTTPException(status_code=401, detail="Token invalid")
   
-  user =await user_collection.find_one({"email": email})
+  user =await user_collection.find_one({"user_email": email})
 
   if user is None:
         raise HTTPException(status_code=404, detail="User not found")
@@ -46,7 +46,7 @@ def create_token(data:dict):
   token=jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
   return token
 
-def refresh_token(data:dict):
+async def create_refresh_token(data:dict):
    to_encode=data.copy()
    expire = datetime.utcnow() + timedelta(days=7)
    to_encode.update({"exp":expire})

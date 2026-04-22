@@ -3,7 +3,7 @@ from jose import jwt,JWTError
 from database import user_collection,order_collection
 from fastapi import APIRouter,Depends,HTTPException
 router=APIRouter(tags=["Orders"])
-from auth import get_current_user,create_token,refresh_token,REFRESH_SECRET_KEY,ALGORITHM
+from auth import get_current_user,create_token,create_refresh_token,REFRESH_SECRET_KEY,ALGORITHM
 from hashing import verify,hashing_password
 from bson import ObjectId
 
@@ -12,7 +12,7 @@ from bson import ObjectId
 @router.post("/register_user",response_model=MessageResponse)
 async def create_user(new_user:User):
   dumping=new_user.model_dump()
-  dumping["password"]=hashing_password(dumping["password"])
+  dumping["user_password"]=hashing_password(dumping["user_password"])
   await user_collection.insert_one(dumping)
   return {"message":"user created successfully"}
 
@@ -132,34 +132,42 @@ async def update_status(order_id:str,status:Update_Order_status,current_user=Dep
 @router.post("/login",response_model=TokenResponse)
 async def login(values:LogIn):
 
-  data=await user_collection.find_one({"email":values.email})
+  data=await user_collection.find_one({"user_email":values.email})
   if data==None:
     raise HTTPException(status_code=404,detail="User email or Passowrd is wrong ")
-  if not verify(values.password,data["password"]):
+  if not verify(values.password,data["user_password"]):
     raise HTTPException(status_code=401,detail="Wrong Password")
-  access_token=create_token({"sub":values.email})
-  refreshtoken=refresh_token({"sub":values.email})
+  access_token_value=create_token({"sub":values.email})
+  refresh_token_value=await create_refresh_token({"sub":values.email})
   return{
-    "token":access_token,
-    "refresh_token":refreshtoken,
+    "token":access_token_value,
+    "refresh_token":refresh_token_value,
     "token_type":"bearer",
     "message":"login successful"}
 
 @router.post("/refresh")
-async def refresh_token(refresh_token:str):
-  try:
-    payload=jwt.decode(refresh_token,REFRESH_SECRET_KEY,ALGORITHM)
-    email=payload.get("sub")
-    if not email:
-      raise HTTPException(status_code=401, detail="Invalid refresh token")
-  except JWTError:
-    raise HTTPException(status_code=401, detail="Refresh token expired or invalid")
-  #checking agar db mai user hai ya nhi there is a strong reason bheind it 
-  user_check=await user_collection.find_one({"email":email})
-  if not user_check:
-    raise HTTPException(status_code=404, detail="User not found")
-  new_access_token=create_token({"sub":user_check["email"]})
-  return {"access_token": new_access_token, "token_type": "bearer"}
+async def refresh_access_token(refresh_token: str):
+    try:
+        payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        email = payload.get("sub")
+
+        if not email:
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Refresh token expired or invalid")
+
+    user_check = await user_collection.find_one({"user_email": email})
+
+    if not user_check:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_access_token = create_token({"sub": email})
+
+    return {
+        "access_token": new_access_token,
+        "token_type": "bearer"
+    }
 
 @router.delete("/delete_user/{email}")
 async def delete_user(email:str,current_user=Depends(get_current_user)):

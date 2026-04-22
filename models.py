@@ -7,8 +7,9 @@ class MessageResponse(BaseModel):
   message:str
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str
+    token:  str
+    refresh_token:  str
+    token_type:  str
 
 class UserResponse(BaseModel):
     user_name: str
